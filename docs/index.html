@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OddSockets C++ SDK Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        :root {
+            --color-bg: #fafafa;
+            --color-surface: #ffffff;
+            --color-border: #e5e7eb;
+            --color-text-primary: #111827;
+            --color-text-secondary: #6b7280;
+            --color-text-muted: #9ca3af;
+            --color-accent: #3b82f6;
+            --color-accent-light: #dbeafe;
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+            --border-radius: 8px;
+            --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--color-text-primary);
+            background: var(--color-bg);
+            font-size: 16px;
+        }
+
+        /* Layout Container - Flexbox Solution */
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .topheader {
+            text-align: center;
+            margin-bottom: 0.15rem;
+        }
+
+        .topheader h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 0.15rem;
+        }
+
+        .topheader p {
+            font-size: 1.125rem;
+            color: #718096;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            padding-top: 5px;
+            padding-left: 25px;
+            font-size: 1.375rem;
+            font-weight: 600;
+            margin-bottom: 0.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }   
+        
+        .logo i {
+            font-size: 1.75rem;
+        }   
+
+    
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            border-top: 1px solid #e2e8f0;
+            color: #718096;
+            font-size: 0.875rem;
+        }   
+           
+
+        /* Sidebar */
+        .sidebar {
+            flex: 0 0 280px;
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            padding: var(--spacing-xl) 0;
+        }
+
+        .sidebar-header {
+            padding: 0 var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .sidebar-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .nav-list {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: var(--color-accent-light);
+            color: var(--color-accent);
+            border-left-color: var(--color-accent);
+        }
+
+        .nav-icon {
+            width: 16px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            min-width: 0;
+            padding: var(--spacing-xl);
+            max-width: none;
+        }
+
+        /* Header */
+        .header {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-2xl);
+            margin-bottom: var(--spacing-xl);
+            text-align: center;
+        }
+
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .header-subtitle {
+            font-size: 1.125rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        .badge {
+            background: var(--color-accent-light);
+            color: var(--color-accent);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        /* Sections */
+        .section {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-xl);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .section-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin: var(--spacing-xl) 0 var(--spacing-md) 0;
+        }
+
+        .section p {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .section ul {
+            color: var(--color-text-secondary);
+            margin: var(--spacing-md) 0;
+            padding-left: var(--spacing-lg);
+        }
+
+        .section li {
+            margin-bottom: var(--spacing-xs);
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .feature-card {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            transition: all 0.2s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-card-title {
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .feature-card p {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        /* Code Blocks */
+        .code-container {
+            margin: var(--spacing-lg) 0;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+        }
+
+        .code-header {
+            background: var(--color-bg);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-lang {
+            color: var(--color-text-muted);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .code-copy {
+            background: var(--color-accent);
+            color: white;
+            border: none;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: calc(var(--border-radius) / 2);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .code-copy:hover {
+            background: #2563eb;
+        }
+
+        .code-container pre {
+            margin: 0;
+            padding: var(--spacing-md);
+            background: #1e293b;
+            overflow-x: auto;
+        }
+
+        .code-container code {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: var(--spacing-xs);
+            margin-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .tab-button.active {
+            color: var(--color-accent);
+            border-bottom-color: var(--color-accent);
+        }
+
+        .tab-button:hover {
+            color: var(--color-text-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Quick Links */
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .quick-link {
+            display: block;
+            padding: var(--spacing-lg);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            color: var(--color-text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .quick-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .quick-link-title {
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .quick-link p {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: var(--spacing-lg);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .stat-label {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-button {
+            display: none;
+            position: fixed;
+            top: var(--spacing-md);
+            left: var(--spacing-md);
+            z-index: 1000;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-sm);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        /* Breadcrumb Navigation */
+        .breadcrumb-nav {
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--spacing-sm) 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .breadcrumb-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 0.875rem;
+        }
+
+        .breadcrumb-link {
+            color: var(--color-accent);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: calc(var(--border-radius) / 2);
+            transition: all 0.2s ease;
+        }
+
+        .breadcrumb-link:hover {
+            background: var(--color-accent-light);
+            color: var(--color-accent);
+        }
+
+        .breadcrumb-separator {
+            color: var(--color-text-muted);
+            font-size: 0.75rem;
+        }
+
+        .breadcrumb-current {
+            color: var(--color-text-primary);
+            font-weight: 500;
+        }
+
+        /* Responsive Design - Clean Flexbox Solution */
+        @media (max-width: 1024px) {
+            .sidebar {
+                flex: 0 0 260px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                flex: 0 0 240px;
+            }
+            
+            .main {
+                padding: var(--spacing-lg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .layout {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                width: 280px;
+                flex: none;
+                z-index: 1000;
+                transition: left 0.3s ease;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .mobile-menu-button {
+                display: block;
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+
+            .main {
+                flex: none;
+                width: 100%;
+                padding: var(--spacing-md);
+                padding-top: calc(var(--spacing-2xl) + 40px);
+            }
+
+            .header {
+                text-align: left;
+                padding: var(--spacing-lg);
+            }
+
+            .header-title {
+                font-size: 2rem;
+            }
+
+            .badges {
+                justify-content: flex-start;
+            }
+
+            .feature-grid,
+            .quick-links,
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .code-header {
+                flex-direction: column;
+                gap: var(--spacing-sm);
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main {
+                padding: var(--spacing-sm);
+                padding-top: calc(var(--spacing-xl) + 40px);
+            }
+
+            .section {
+                padding: var(--spacing-md);
+            }
+
+            .header-title {
+                font-size: 1.75rem;
+            }
+        }
+
+        /* Prism Theme Override */
+        pre[class*="language-"] {
+            background: #1e293b !important;
+            color: #e2e8f0 !important;
+        }
+
+        .token.comment { color: #64748b !important; }
+        .token.string { color: #22d3ee !important; }
+        .token.keyword { color: #a78bfa !important; }
+        .token.function { color: #fb7185 !important; }
+        .token.number { color: #fbbf24 !important; }
+        .token.operator { color: #e2e8f0 !important; }
+    </style>
+</head>
+<body>
+    <button class="mobile-menu-button" onclick="toggleMobileMenu()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="mobile-overlay" id="mobile-overlay" onclick="closeMobileMenu()"></div>
+
+    <div class="topheader">
+            
+            <div class="logo">
+                <a href="/">
+                     <img src="https://prodmedia.tyga.host/public/tyga.cloud/landing/oddsockets.com/oddsockets-logo-words-white-256.png" alt="OddSockets" class="logo">
+                </a>  
+            </div>
+    </div>
+
+    <!-- Breadcrumb Navigation -->
+    <nav class="breadcrumb-nav">
+        <div class="breadcrumb-container">
+
+            <a href="../../docs-index.html" class="breadcrumb-link">
+                <i class="fas fa-home"></i>
+                OddSockets Documentation
+            </a>
+            <i class="fas fa-chevron-right breadcrumb-separator"></i>
+            <span class="breadcrumb-current">C++ SDK</span>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">
+                    <i class="fas fa-book"></i>
+                    Documentation
+                </h2>
+            </div>
+            <nav>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#overview" class="nav-link active">
+                            <i class="fas fa-eye nav-icon"></i>
+                            Overview
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#installation" class="nav-link">
+                            <i class="fas fa-download nav-icon"></i>
+                            Installation
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#quick-start" class="nav-link">
+                            <i class="fas fa-rocket nav-icon"></i>
+                            Quick Start
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#configuration" class="nav-link">
+                            <i class="fas fa-cog nav-icon"></i>
+                            Configuration
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#embedded" class="nav-link">
+                            <i class="fas fa-microchip nav-icon"></i>
+                            Embedded/IoT
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#examples" class="nav-link">
+                            <i class="fas fa-code nav-icon"></i>
+                            Examples
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#performance" class="nav-link">
+                            <i class="fas fa-chart-line nav-icon"></i>
+                            Performance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#platforms" class="nav-link">
+                            <i class="fas fa-layer-group nav-icon"></i>
+                            Platforms
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <header class="header">
+                <h1 class="header-title">OddSockets C++ SDK</h1>
+                <p class="header-subtitle">Modern C++ SDK for embedded systems and IoT devices - JavaScript Pattern Compliant</p>
+                <div class="badges">
+                    <span class="badge">
+                        <i class="fab fa-github"></i>
+                        CMake Ready
+                    </span>
+                    <span class="badge">
+                        <i class="fas fa-code"></i>
+                        C++17
+                    </span>
+                    <span class="badge">
+                        <i class="fas fa-microchip"></i>
+                        Embedded/IoT
+                    </span>
+                    <span class="badge">
+                        <i class="fas fa-bolt"></i>
+                        High Performance
+                    </span>
+                    <span class="badge">
+                        <i class="fas fa-sync-alt"></i>
+                        JS Pattern Compliant
+                    </span>
+                </div>
+            </header>
+
+            <section id="overview" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-eye"></i>
+                    Overview & Features
+                </h2>
+                <p>The OddSockets C++ SDK provides a powerful, resource-efficient interface for real-time messaging specifically designed for embedded systems and IoT devices while maintaining full compatibility with the JavaScript SDK pattern.</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-microchip"></i>
+                            Embedded Optimized
+                        </h4>
+                        <p>Minimal memory footprint, configurable resource limits, and custom allocator support for embedded systems.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-code"></i>
+                            Modern C++17
+                        </h4>
+                        <p>Clean, type-safe API with RAII principles, smart pointers, and modern async programming.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-sync-alt"></i>
+                            JS Pattern Compliant
+                        </h4>
+                        <p>100% architectural compliance with JavaScript SDK - same API patterns and behavior.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-bolt"></i>
+                            High Performance
+                        </h4>
+                        <p>Optimized for low latency with efficient WebSocket connections and minimal overhead.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-globe"></i>
+                            Cross-Platform
+                        </h4>
+                        <p>Works on Linux, Windows, macOS, and embedded platforms with consistent behavior.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-shield-alt"></i>
+                            Production Ready
+                        </h4>
+                        <p>Thread-safe, automatic failover, and comprehensive error handling for mission-critical applications.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="installation" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-download"></i>
+                    Installation
+                </h2>
+                
+                <div class="tabs">
+                    <button class="tab-button active" onclick="showTab('cmake')">CMake</button>
+                    <button class="tab-button" onclick="showTab('vcpkg')">vcpkg</button>
+                    <button class="tab-button" onclick="showTab('conan')">Conan</button>
+                    <button class="tab-button" onclick="showTab('manual')">Manual</button>
+                </div>
+
+                <div id="cmake" class="tab-content active">
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-lang">cmake</span>
+                            <button class="code-copy" onclick="copyCode(this)">
+                                <i class="fas fa-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                        <pre><code class="language-cmake"># CMakeLists.txt
+find_package(OddSockets REQUIRED)
+target_link_libraries(your_target OddSockets::oddsockets)</code></pre>
+                    </div>
+                </div>
+
+                <div id="vcpkg" class="tab-content">
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-lang">bash</span>
+                            <button class="code-copy" onclick="copyCode(this)">
+                                <i class="fas fa-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                        <pre><code class="language-bash">vcpkg install oddsockets-cpp-sdk</code></pre>
+                    </div>
+                </div>
+
+                <div id="conan" class="tab-content">
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-lang">ini</span>
+                            <button class="code-copy" onclick="copyCode(this)">
+                                <i class="fas fa-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                        <pre><code class="language-ini"># conanfile.txt
+[requires]
+oddsockets-cpp-sdk/1.0.0
+
+[generators]
+cmake</code></pre>
+                    </div>
+                </div>
+
+                <div id="manual" class="tab-content">
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-lang">bash</span>
+                            <button class="code-copy" onclick="copyCode(this)">
+                                <i class="fas fa-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                        <pre><code class="language-bash">git clone https://github.com/oddsockets/cpp-sdk.git
+cd cpp-sdk
+mkdir build && cd build
+cmake ..
+make install</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section id="quick-start" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-rocket"></i>
+                    Quick Start
+                </h2>
+                
+                <h3 class="section-subtitle">Basic Usage</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include <oddsockets/OddSockets.h>
+#include <iostream>
+
+int main() {
+    // Create configuration
+    oddsockets::Config config;
+    config.apiKey = "ak_live_1234567890abcdef";
+    config.userId = "user123";
+    
+    // Create client
+    auto client = std::make_unique<oddsockets::OddSockets>(config);
+    
+    // Connect to platform
+    auto connectFuture = client->connect();
+    bool connected = connectFuture.get();
+    
+    if (connected) {
+        // Get a channel
+        auto channel = client->channel("my-channel");
+        
+        // Subscribe to messages
+        channel->subscribe([](const std::string& message) {
+            std::cout << "Received: " << message << std::endl;
+        });
+        
+        // Publish a message
+        auto publishFuture = channel->publish("Hello from C++!");
+        auto result = publishFuture.get();
+        
+        if (result.success) {
+            std::cout << "Message published successfully!" << std::endl;
+        }
+    }
+    
+    return 0;
+}</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Embedded System Usage</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include <oddsockets/OddSockets.h>
+
+// Custom allocator for embedded systems
+class EmbeddedAllocator {
+public:
+    static void* allocate(size_t size) {
+        return malloc(size);
+    }
+    
+    static void deallocate(void* ptr) {
+        free(ptr);
+    }
+};
+
+int main() {
+    // Set custom allocator
+    oddsockets::setCustomAllocator<EmbeddedAllocator>();
+    
+    // Minimal configuration for embedded systems
+    oddsockets::Config config;
+    config.apiKey = "ak_live_1234567890abcdef";
+    config.maxChannels = 4;           // Limit channels
+    config.maxMessageSize = 1024;     // Smaller messages
+    config.enableLogging = false;     // Disable logging
+    config.enableSSL = false;         // Disable SSL if not needed
+    config.enableThreading = false;   // Single-threaded mode
+    
+    auto client = std::make_unique<oddsockets::OddSockets>(config);
+    
+    // Connect and use...
+    auto connectFuture = client->connect();
+    bool connected = connectFuture.get();
+    
+    if (connected) {
+        auto channel = client->channel("iot-data");
+        
+        // Process events manually in single-threaded mode
+        while (client->isConnected()) {
+            client->processEvents();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+    
+    return 0;
+}</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Async/Await Style (C++20)</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include <oddsockets/OddSockets.h>
+#include <coroutine>
+
+// C++20 coroutine support (optional)
+oddsockets::task<void> chatExample() {
+    oddsockets::Config config;
+    config.apiKey = "ak_live_1234567890abcdef";
+    
+    auto client = std::make_unique<oddsockets::OddSockets>(config);
+    
+    // Await connection
+    bool connected = co_await client->connect();
+    
+    if (connected) {
+        auto channel = client->channel("chat");
+        
+        // Await subscription
+        bool subscribed = co_await channel->subscribe([](const std::string& msg) {
+            std::cout << "Message: " << msg << std::endl;
+        });
+        
+        if (subscribed) {
+            // Await publish
+            auto result = co_await channel->publish("Hello from C++20!");
+            std::cout << "Published: " << result.success << std::endl;
+        }
+    }
+}</code></pre>
+                </div>
+            </section>
+
+            <section id="configuration" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-cog"></i>
+                    Configuration
+                </h2>
+                
+                <h3 class="section-subtitle">Client Configuration</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">oddsockets::Config config;
+
+// Required
+config.apiKey = "ak_live_1234567890abcdef";
+
+// Optional
+config.userId = "user123";
+config.managerUrl = "https://manager1.oddsockets.tyga.network";
+
+// Connection Options
+config.autoConnect = true;
+config.reconnectAttempts = 5;
+config.reconnectDelayMs = 1000;
+config.connectionTimeoutMs = 10000;
+config.messageTimeoutMs = 5000;
+
+// Resource Limits (for embedded systems)
+config.maxChannels = 32;
+config.maxMessageSize = 32768;  // 32KB
+
+// SSL/TLS Options
+config.enableSsl = true;
+config.sslVerifyPeer = true;
+config.caCertPath = "/path/to/ca-cert.pem";
+
+// Logging
+config.logLevel = oddsockets::LogLevel::Info;
+config.logCallback = [](oddsockets::LogLevel level, const std::string& message) {
+    std::cout << "[" << oddsockets::logLevelToString(level) << "] " << message << std::endl;
+};
+
+// Callbacks
+config.connectionCallback = [](oddsockets::ConnectionState state) {
+    std::cout << "Connection: " << oddsockets::connectionStateToString(state) << std::endl;
+};
+
+config.errorCallback = [](oddsockets::ErrorCode error, const std::string& message) {
+    std::cout << "Error: " << message << std::endl;
+};</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Channel Options</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">// Subscribe options
+oddsockets::SubscribeOptions subscribeOpts;
+subscribeOpts.maxHistory = 100;
+subscribeOpts.retainHistory = true;
+subscribeOpts.enablePresence = true;
+
+channel->subscribe(callback, subscribeOpts);
+
+// Publish options
+oddsockets::PublishOptions publishOpts;
+publishOpts.ttlSeconds = 3600;
+publishOpts.metadata = R"({"priority": "high"})";
+publishOpts.storeInHistory = true;
+
+channel->publish("Hello, World!", publishOpts);
+
+// History options
+oddsockets::HistoryOptions historyOpts;
+historyOpts.count = 50;
+historyOpts.startTime = "2024-01-01T00:00:00Z";
+historyOpts.endTime = "2024-01-02T00:00:00Z";
+
+auto historyFuture = channel->getHistory(historyOpts);</code></pre>
+                </div>
+            </section>
+
+            <section id="embedded" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-microchip"></i>
+                    Embedded Systems & IoT
+                </h2>
+                
+                <p>The C++ SDK is specifically optimized for embedded systems and IoT devices with minimal resource requirements:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-memory"></i>
+                            Memory Management
+                        </h4>
+                        <p>Custom allocators, memory tracking, and configurable limits for resource-constrained environments.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-microchip"></i>
+                            Single-Threaded Mode
+                        </h4>
+                        <p>Optional single-threaded operation for systems without threading support.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-ban"></i>
+                            No-Exception Mode
+                        </h4>
+                        <p>Error code-based error handling for systems that don't support exceptions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4 class="feature-card-title">
+                            <i class="fas fa-sliders-h"></i>
+                            Configurable Features
+                        </h4>
+                        <p>Disable SSL, logging, or other features to reduce binary size and memory usage.</p>
+                    </div>
+                </div>
+
+                <h3 class="section-subtitle">Memory Optimization</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">// Custom memory allocator
+class PoolAllocator {
+    static constexpr size_t POOL_SIZE = 64 * 1024; // 64KB pool
+    static uint8_t pool[POOL_SIZE];
+    static size_t offset;
+    
+public:
+    static void* allocate(size_t size) {
+        if (offset + size > POOL_SIZE) return nullptr;
+        void* ptr = pool + offset;
+        offset += size;
+        return ptr;
+    }
+    
+    static void deallocate(void* ptr) {
+        // Pool allocator - no individual deallocation
+    }
+    
+    static void reset() {
+        offset = 0;
+    }
+};
+
+// Set custom allocator
+oddsockets::setCustomAllocator<PoolAllocator>();
+
+// Monitor memory usage
+size_t allocated, peak;
+oddsockets::getMemoryStats(&allocated, &peak);
+std::cout << "Memory: " << allocated << " bytes (peak: " << peak << ")" << std::endl;</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Minimal Configuration</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">// Minimal embedded configuration
+oddsockets::Config config;
+config.apiKey = "ak_live_1234567890abcdef";
+
+// Resource limits
+config.maxChannels = 2;           // Only 2 channels
+config.maxMessageSize = 512;      // 512 byte messages
+config.connectionTimeoutMs = 5000; // 5 second timeout
+
+// Disable features
+config.enableLogging = false;     // No logging
+config.enableSSL = false;         // No SSL (if not needed)
+config.enableThreading = false;   // Single-threaded
+config.enableExceptions = false;  // No exceptions
+
+// Minimal callbacks
+config.errorCallback = [](oddsockets::ErrorCode error, const std::string&) {
+    // Handle error codes instead of exceptions
+    if (error != oddsockets::ErrorCode::Success) {
+        // Handle error...
+    }
+};</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Platform Support</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); margin-top: var(--spacing-xl);">
+                    <div>
+                        <h4 class="section-subtitle">Supported Platforms</h4>
+                        <ul style="margin: 0;">
+                            <li>Linux (ARM, x86, x64)</li>
+                            <li>FreeRTOS</li>
+                            <li>Zephyr RTOS</li>
+                            <li>Arduino (ESP32, ESP8266)</li>
+                            <li>Raspberry Pi</li>
+                            <li>STM32</li>
+                            <li>Nordic nRF</li>
+                            <li>Windows IoT</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="section-subtitle">Requirements</h4>
+                        <ul style="margin: 0;">
+                            <li>C++17 compiler</li>
+                            <li>32KB+ RAM (configurable)</li>
+                            <li>TCP/IP stack</li>
+                            <li>Optional: SSL/TLS support</li>
+                            <li>Optional: Threading support</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="examples" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-code"></i>
+                    Examples
+                </h2>
+                
+                <p>Explore comprehensive examples demonstrating the OddSockets C++ SDK in action:</p>
+                
+                <div class="quick-links">
+                    <a href="../examples/index.html" class="quick-link">
+                        <h4 class="quick-link-title">
+                            <i class="fas fa-folder-open"></i>
+                            View All Examples
+                        </h4>
+                        <p>Browse all available examples including embedded demos, IoT applications, and cross-platform tutorials</p>
+                    </a>
+                </div>
+            </section>
+
+            <section id="performance" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-chart-line"></i>
+                    Performance & Compatibility
+                </h2>
+                <p>OddSockets C++ SDK delivers superior performance optimized for embedded systems:</p>
+                
+                <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                    <div class="stat-card">
+                        <div class="stat-number">&lt;10ms</div>
+                        <div class="stat-label">Latency</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">99.9%</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">32KB</div>
+                        <div class="stat-label">Min RAM</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">100K+</div>
+                        <div class="stat-label">Messages/sec</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); margin-top: var(--spacing-xl);">
+                    <div>
+                        <h3 class="section-subtitle">Compiler Support</h3>
+                        <ul style="margin: 0;">
+                            <li>GCC 7+ (C++17)</li>
+                            <li>Clang 6+ (C++17)</li>
+                            <li>MSVC 2019+ (C++17)</li>
+                            <li>ARM GCC (embedded)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="section-subtitle">Build Systems</h3>
+                        <ul style="margin: 0;">
+                            <li>CMake 3.12+</li>
+                            <li>vcpkg</li>
+                            <li>Conan</li>
+                            <li>Arduino IDE</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="platforms" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-layer-group"></i>
+                    Platform Integrations
+                </h2>
+                
+                <p>The OddSockets C++ SDK works seamlessly across multiple platforms and environments:</p>
+                
+                <h3 class="section-subtitle">Arduino (ESP32)</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include <WiFi.h>
+#include <oddsockets/OddSockets.h>
+
+const char* ssid = "your-wifi-ssid";
+const char* password = "your-wifi-password";
+
+std::unique_ptr<oddsockets::OddSockets> client;
+
+void setup() {
+    Serial.begin(115200);
+    
+    // Connect to WiFi
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.println("Connecting to WiFi...");
+    }
+    
+    // Configure OddSockets for ESP32
+    oddsockets::Config config;
+    config.apiKey = "ak_live_1234567890abcdef";
+    config.maxChannels = 2;
+    config.maxMessageSize = 1024;
+    config.enableLogging = false;
+    
+    client = std::make_unique<oddsockets::OddSockets>(config);
+    
+    // Connect and subscribe
+    auto connectFuture = client->connect();
+    if (connectFuture.get()) {
+        auto channel = client->channel("sensor-data");
+        
+        channel->subscribe([](const std::string& message) {
+            Serial.println(("Received: " + message).c_str());
+        });
+    }
+}
+
+void loop() {
+    // Process events
+    client->processEvents();
+    
+    // Send sensor data every 10 seconds
+    static unsigned long lastSend = 0;
+    if (millis() - lastSend > 10000) {
+        auto channel = client->channel("sensor-data");
+        
+        String sensorData = "{\"temperature\": " + String(random(20, 30)) + 
+                           ", \"humidity\": " + String(random(40, 60)) + "}";
+        
+        channel->publish(sensorData.c_str());
+        lastSend = millis();
+    }
+    
+    delay(10);
+}</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Raspberry Pi</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include <oddsockets/OddSockets.h>
+#include <wiringPi.h>
+#include <iostream>
+#include <thread>
+
+const int LED_PIN = 18;
+const int BUTTON_PIN = 24;
+
+int main() {
+    // Initialize WiringPi
+    wiringPiSetupGpio();
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(BUTTON_PIN, INPUT);
+    pullUpDnControl(BUTTON_PIN, PUD_UP);
+    
+    // Configure OddSockets
+    oddsockets::Config config;
+    config.apiKey = "ak_live_1234567890abcdef";
+    config.userId = "raspberry-pi-001";
+    
+    auto client = std::make_unique<oddsockets::OddSockets>(config);
+    
+    // Connect
+    auto connectFuture = client->connect();
+    if (!connectFuture.get()) {
+        std::cerr << "Failed to connect!" << std::endl;
+        return 1;
+    }
+    
+    auto controlChannel = client->channel("device-control");
+    auto statusChannel = client->channel("device-status");
+    
+    // Subscribe to control commands
+    controlChannel->subscribe([](const std::string& message) {
+        std::cout << "Control command: " << message << std::endl;
+        
+        if (message == "LED_ON") {
+            digitalWrite(LED_PIN, HIGH);
+        } else if (message == "LED_OFF") {
+            digitalWrite(LED_PIN, LOW);
+        }
+    });
+    
+    // Monitor button and send status
+    bool lastButtonState = HIGH;
+    
+    while (client->isConnected()) {
+        client->processEvents();
+        
+        // Check button state
+        bool buttonState = digitalRead(BUTTON_PIN);
+        if (buttonState != lastButtonState && buttonState == LOW) {
+            statusChannel->publish("BUTTON_PRESSED");
+            std::cout << "Button pressed!" << std::endl;
+        }
+        lastButtonState = buttonState;
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    
+    return 0;
+}</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">FreeRTOS</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include <oddsockets/OddSockets.h>
+
+// FreeRTOS allocator
+class FreeRTOSAllocator {
+public:
+    static void* allocate(size_t size) {
+        return pvPortMalloc(size);
+    }
+    
+    static void deallocate(void* ptr) {
+        vPortFree(ptr);
+    }
+};
+
+std::unique_ptr<oddsockets::OddSockets> client;
+QueueHandle_t messageQueue;
+
+void oddSocketsTask(void* parameters) {
+    // Set FreeRTOS allocator
+    oddsockets::setCustomAllocator<FreeRTOSAllocator>();
+    
+    // Configure for FreeRTOS
+    oddsockets::Config config;
+    config.apiKey = "ak_live_1234567890abcdef";
+    config.maxChannels = 1;
+    config.maxMessageSize = 256;
+    config.enableLogging = false;
+    config.enableThreading = false;  // Use FreeRTOS tasks instead
+    
+    client = std::make_unique<oddsockets::OddSockets>(config);
+    
+    // Connect
+    auto connectFuture = client->connect();
+    if (connectFuture.get()) {
+        auto channel = client->channel("freertos-device");
+        
+        channel->subscribe([](const std::string& message) {
+            // Send message to queue for processing by other tasks
+            const char* msg = message.c_str();
+            xQueueSend(messageQueue, &msg, portMAX_DELAY);
+        });
+        
+        // Main event loop
+        while (1) {
+            client->processEvents();
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+    }
+    
+    vTaskDelete(NULL);
+}
+
+void sensorTask(void* parameters) {
+    while (1) {
+        // Read sensor data
+        float temperature = readTemperatureSensor();
+        float humidity = readHumiditySensor();
+        
+        // Create JSON message
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), 
+                "{\"temp\": %.2f, \"humidity\": %.2f}", 
+                temperature, humidity);
+        
+        // Publish sensor data
+        if (client && client->isConnected()) {
+            auto channel = client->channel("freertos-device");
+            channel->publish(std::string(buffer));
+        }
+        
+        vTaskDelay(pdMS_TO_TICKS(30000)); // 30 seconds
+    }
+}
+
+int main() {
+    // Create message queue
+    messageQueue = xQueueCreate(10, sizeof(char*));
+    
+    // Create tasks
+    xTaskCreate(oddSocketsTask, "OddSockets", 4096, NULL, 2, NULL);
+    xTaskCreate(sensorTask, "Sensor", 2048, NULL, 1, NULL);
+    
+    // Start scheduler
+    vTaskStartScheduler();
+    
+    return 0;
+}</code></pre>
+                </div>
+
+                <h3 class="section-subtitle">Cross-Platform Desktop</h3>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-lang">cpp</span>
+                        <button class="code-copy" onclick="copyCode(this)">
+                            <i class="fas fa-copy"></i>
+                            Copy
+                        </button>
+                    </div>
+                    <pre><code class="language-cpp">#include <oddsockets/OddSockets.h>
+#include <iostream>
+#include <thread>
+#include <chrono>
+
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <unistd.h>
+#endif
+
+class CrossPlatformApp {
+private:
+    std::unique_ptr<oddsockets::OddSockets> client;
+    std::atomic<bool> running{true};
+    
+public:
+    void run() {
+        // Configure client
+        oddsockets::Config config;
+        config.apiKey = "ak_live_1234567890abcdef";
+        config.userId = getSystemId();
+        
+        // Platform-specific optimizations
+        #ifdef __EMBEDDED__
+            config.maxChannels = 2;
+            config.enableLogging = false;
+        #else
+            config.maxChannels = 10;
+            config.enableLogging = true;
+        #endif
+        
+        client = std::make_unique<oddsockets::OddSockets>(config);
+        
+        // Connect
+        auto connectFuture = client->connect();
+        if (!connectFuture.get()) {
+            std::cerr << "Failed to connect!" << std::endl;
+            return;
+        }
+        
+        std::cout << "Connected to OddSockets!" << std::endl;
+        
+        // Setup channels
+        auto chatChannel = client->channel("cross-platform-chat");
+        auto statusChannel = client->channel("system-status");
+        
+        // Subscribe to chat
+        chatChannel->subscribe([this](const std::string& message) {
+            std::cout << "Chat: " << message << std::endl;
+        });
+        
+        // Send periodic status updates
+        std::thread statusThread([this, statusChannel]() {
+            while (running) {
+                std::string status = getSystemStatus();
+                statusChannel->publish(status);
+                
+                std::this_thread::sleep_for(std::chrono::seconds(60));
+            }
+        });
+        
+        // Main loop
+        std::string input;
+        while (running && std::getline(std::cin, input)) {
+            if (input == "/quit") {
+                running = false;
+                break;
+            }
+            
+            chatChannel->publish(input);
+        }
+        
+        statusThread.join();
+        client->disconnect();
+    }
+    
+private:
+    std::string getSystemId() {
+        #ifdef _WIN32
+            char computerName[MAX_COMPUTERNAME_LENGTH + 1];
+            DWORD size = sizeof(computerName);
+            GetComputerNameA(computerName, &size);
+            return std::string(computerName);
+        #else
+            char hostname[256];
+            gethostname(hostname, sizeof(hostname));
+            return std::string(hostname);
+        #endif
+    }
+    
+    std::string getSystemStatus() {
+        // Platform-specific system info
+        return R"({"platform": ")" + getPlatformName() + R"(", "uptime": )" + 
+               std::to_string(getUptime()) + "}";
+    }
+    
+    std::string getPlatformName() {
+        #ifdef _WIN32
+            return "Windows";
+        #elif __linux__
+            return "Linux";
+        #elif __APPLE__
+            return "macOS";
+        #else
+            return "Unknown";
+        #endif
+    }
+    
+    long getUptime() {
+        #ifdef _WIN32
+            return GetTickCount64() / 1000;
+        #else
+            return time(nullptr);
+        #endif
+    }
+};
+
+int main() {
+    CrossPlatformApp app;
+    app.run();
+    return 0;
+}</code></pre>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div class="footer">
+        <p>&copy; 2025 Tyga.Cloud Ltd. oddsockets.com is a division of Tyga.Cloud Ltd. All rights reserved.</p>
+    </div>
+
+    <script>
+        // Copy code functionality
+        function copyCode(button) {
+            const codeContainer = button.closest('.code-container');
+            const codeElement = codeContainer.querySelector('code');
+            
+            if (codeElement) {
+                const code = codeElement.textContent;
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                    }, 2000);
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = code;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                    }, 2000);
+                });
+            }
+        }
+
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Mobile menu functionality
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            
+            // Prevent body scroll when menu is open
+            if (sidebar.classList.contains('open')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Navigation functionality
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    
+                    // Update active navigation
+                    document.querySelectorAll('.nav-link').forEach(navLink => {
+                        navLink.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Close mobile menu if open
+                    closeMobileMenu();
+                }
+            });
+        });
+
+        // Update active navigation on scroll
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('.section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= (sectionTop - 200)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+        });
+
+        // Initialize Prism.js
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightAll();
+            }
+        });
+    </script>
+</body>
+</html>
