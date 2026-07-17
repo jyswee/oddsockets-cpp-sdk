@@ -22,7 +22,7 @@ std::mutex ManagerDiscovery::mutex_;
 
 // Default manager URLs for fallback
 const std::vector<std::string> ManagerDiscovery::DEFAULT_MANAGER_URLS = {
-    "https://manager1.oddsockets.tyga.network",
+    "https://connect.oddsockets.tyga.network",
     "https://manager-us-east.oddsockets.com",
     "https://manager-us-west.oddsockets.com",
     "https://manager-eu.oddsockets.com",

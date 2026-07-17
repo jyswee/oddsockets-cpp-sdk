@@ -32,7 +32,7 @@ constexpr size_t MAX_MESSAGE_SIZE = 32768;  // 32KB in bytes
 constexpr size_t MAX_MESSAGE_SIZE_KB = 32;
 
 // Default Configuration Values
-constexpr const char* DEFAULT_MANAGER_URL = "https://manager1.oddsockets.tyga.network";
+constexpr const char* DEFAULT_MANAGER_URL = "https://connect.oddsockets.tyga.network";
 constexpr int DEFAULT_RECONNECT_ATTEMPTS = 5;
 constexpr int DEFAULT_RECONNECT_DELAY_MS = 1000;
 constexpr int DEFAULT_CONNECTION_TIMEOUT_MS = 10000;
