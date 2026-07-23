@@ -1,0 +1,23 @@
+OddSockets C++ SDK - two-client honest regression proof
+Captured: 2026-07-23T19:36:26Z
+Command: docker run --rm -e ODDSOCKETS_API_KEY=ak_... oddsockets-cpp-demo
+Exit code: 0
+
+[connect] alice -> w002-oddsockets-1, bob -> w002-oddsockets-1
+
+=== Scenario 1: core pub/sub on demo-core-<nonce> ===
+[alice] subscribed
+[bob] published (ok=true)
+[alice recv] {"text":"hello from bob marker=<nonce>","username":"bob","messageType":"demo"}
+[PASS] alice received bob's message across separate connections
+
+=== Scenario 2: enhanced events on demo-enh-<nonce> ===
+[alice/bob] subscribed to enhanced channel
+[bob] published anchor
+[bob] enhanced.startTyping fired
+[bob] enhanced.addReaction fired
+[alice on user_typing] {"userId":"bob","channel":"demo-enh-<nonce>","timestamp":"2026-07-23T19:35:59.196Z"}
+[alice on reaction_added] {"messageId":"msg-<nonce>","channel":"demo-enh-<nonce>","emoji":":thumbsup:","userId":"bob","userName":"Bob","reactionCounts":[{"_id":":thumbsup:","count":1,"users":[{"userId":"bob","userName":"Bob"}]}]}
+[PASS] alice received user_typing AND reaction_added from bob
+
+OK - all scenarios verified live through the OddSockets platform

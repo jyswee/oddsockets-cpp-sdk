@@ -20,6 +20,27 @@ Channel::~Channel() {
     }
 }
 
+namespace {
+
+// Escape a value for embedding inside a JSON string literal.
+std::string jsonEscape(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() + 8);
+    for (char c : s) {
+        switch (c) {
+            case '"':  out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n";  break;
+            case '\r': out += "\\r";  break;
+            case '\t': out += "\\t";  break;
+            default:   out += c;      break;
+        }
+    }
+    return out;
+}
+
+} // namespace
+
 std::future<bool> Channel::subscribe(MessageCallback callback, const SubscribeOptions& options) {
     return std::async(std::launch::async, [this, callback, options]() -> bool {
         if (subscribed_ || subscribing_) return false;
@@ -27,24 +48,17 @@ std::future<bool> Channel::subscribe(MessageCallback callback, const SubscribeOp
 
         subscribing_ = true;
         messageCallback_ = callback;
+        subscribeOptions_ = options;
 
-        json::Value msg;
-        msg.set("type", json::Value(std::string("subscribe")));
-        msg.set("channel", json::Value(name_));
+        // Emit a Socket.IO "subscribe" event; options in camelCase as the worker
+        // reads them. Joining the scoped room is required to receive broadcasts.
+        std::string payload =
+            "{\"channel\":\"" + jsonEscape(name_) + "\",\"options\":{" +
+            "\"maxHistory\":" + std::to_string(options.maxHistory) +
+            ",\"retainHistory\":" + (options.retainHistory ? "true" : "false") +
+            ",\"enablePresence\":" + (options.enablePresence ? "true" : "false") + "}}";
 
-        json::Value opts;
-        opts.set("maxHistory", json::Value(static_cast<double>(options.maxHistory)));
-        opts.set("retainHistory", json::Value(options.retainHistory));
-        opts.set("enablePresence", json::Value(options.enablePresence));
-        msg.set("options", opts);
-
-        if (client_->websocket_) {
-            auto result = client_->websocket_->send(json::stringify(msg));
-            if (!result.get()) {
-                subscribing_ = false;
-                return false;
-            }
-        }
+        client_->emit("subscribe", payload);
 
         subscribed_ = true;
         subscribing_ = false;
@@ -56,13 +70,8 @@ std::future<bool> Channel::unsubscribe() {
     return std::async(std::launch::async, [this]() -> bool {
         if (!subscribed_) return false;
 
-        json::Value msg;
-        msg.set("type", json::Value(std::string("unsubscribe")));
-        msg.set("channel", json::Value(name_));
-
-        if (client_ && client_->websocket_) {
-            client_->websocket_->send(json::stringify(msg));
-        }
+        std::string payload = "{\"channel\":\"" + jsonEscape(name_) + "\"}";
+        if (client_) client_->emit("unsubscribe", payload);
 
         subscribed_ = false;
         messageCallback_ = nullptr;
@@ -86,25 +95,31 @@ std::future<PublishResult> Channel::publish(const std::string& message, const Pu
             return result;
         }
 
-        json::Value msg;
-        msg.set("type", json::Value(std::string("publish")));
-        msg.set("channel", json::Value(name_));
-        msg.set("message", json::Value(message));
+        // Embed the message raw when it is already JSON (object/array), otherwise
+        // as a JSON string. The worker delivers structured bodies verbatim.
+        std::string trimmed = message;
+        size_t firstNonWs = trimmed.find_first_not_of(" \t\n\r");
+        bool raw = (firstNonWs != std::string::npos &&
+                    (trimmed[firstNonWs] == '{' || trimmed[firstNonWs] == '['));
 
+        std::string payload = "{\"channel\":\"" + jsonEscape(name_) + "\",\"message\":";
+        payload += raw ? message : ("\"" + jsonEscape(message) + "\"");
+
+        // Only attach options when set - the worker defaults them on undefined,
+        // and a JSON null would crash the handler.
         if (options.ttlSeconds > 0 || !options.metadata.empty()) {
-            json::Value opts;
-            opts.set("ttl", json::Value(static_cast<double>(options.ttlSeconds)));
+            payload += ",\"options\":{\"ttl\":" + std::to_string(options.ttlSeconds) +
+                       ",\"storeInHistory\":" + (options.storeInHistory ? "true" : "false");
             if (!options.metadata.empty()) {
-                opts.set("metadata", json::Value(options.metadata));
+                payload += ",\"metadata\":\"" + jsonEscape(options.metadata) + "\"";
             }
-            msg.set("options", opts);
+            payload += "}";
         }
+        payload += "}";
 
-        if (client_->websocket_) {
-            result.success = client_->websocket_->send(json::stringify(msg)).get();
-        }
+        client_->emit("publish", payload);
 
-        if (!result.success) result.error = "Failed to send";
+        result.success = true;
         result.timestamp = std::chrono::system_clock::now();
         return result;
     });
@@ -119,27 +134,24 @@ std::future<std::vector<std::string>> Channel::getHistory(const HistoryOptions& 
 
 std::future<PresenceInfo> Channel::getPresence() {
     return std::async(std::launch::async, [this]() -> PresenceInfo {
-        return PresenceInfo{};
+        if (client_ && client_->getState() == ConnectionState::Connected) {
+            std::string payload = "{\"channel\":\"" + jsonEscape(name_) + "\"}";
+            client_->emit("get_presence", payload);
+        }
+        std::lock_guard<std::mutex> lock(presenceMutex_);
+        return presenceInfo_;
     });
 }
 
-std::future<bool> Channel::updateState(const std::map<std::string, std::string>& state) {
+std::future<bool> Channel::updateState(const std::string& state) {
     return std::async(std::launch::async, [this, state]() -> bool {
         if (!client_ || client_->getState() != ConnectionState::Connected) return false;
 
-        json::Value stateObj;
-        for (const auto& kv : state) {
-            stateObj.set(kv.first, json::Value(kv.second));
-        }
-
-        json::Value msg;
-        msg.set("type", json::Value(std::string("update_state")));
-        msg.set("state", stateObj);
-
-        if (client_->websocket_) {
-            return client_->websocket_->send(json::stringify(msg)).get();
-        }
-        return false;
+        // state is expected to be a JSON object string.
+        std::string payload = "{\"channel\":\"" + jsonEscape(name_) + "\",\"state\":" +
+                              (state.empty() ? std::string("{}") : state) + "}";
+        client_->emit("update_state", payload);
+        return true;
     });
 }
 
