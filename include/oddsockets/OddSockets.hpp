@@ -20,8 +20,17 @@
 #include <mutex>
 #include <atomic>
 #include <thread>
+#include <string>
+#include <functional>
+#include <vector>
 
 namespace oddsockets {
+
+// Forward declaration - defined in EnhancedFeatures.hpp
+class EnhancedFeatures;
+
+// Raw Socket.IO event payload handler (payload delivered as JSON string)
+using RawHandler = std::function<void(const std::string& payloadJson)>;
 
 /**
  * OddSockets C++ SDK Client
@@ -83,6 +92,27 @@ public:
     std::shared_ptr<Channel> channel(const std::string& channelName);
     
     /**
+     * Emit a raw Socket.IO event over the live connection
+     * @param event Event name
+     * @param payloadJson Payload rendered as a JSON string (object/array/value)
+     */
+    void emit(const std::string& event, const std::string& payloadJson);
+
+    /**
+     * Register a handler for a raw Socket.IO event (e.g. "user_typing").
+     * The handler receives the event payload as a JSON string.
+     * @param event Event name
+     * @param handler Handler invoked with the payload JSON on each event
+     */
+    void on(const std::string& event, RawHandler handler);
+
+    /**
+     * Access the enhanced (Slack-like) event surface bound to this client.
+     * @return Reference to the EnhancedFeatures instance
+     */
+    EnhancedFeatures& enhanced();
+
+    /**
      * Get assigned worker information
      * @return Worker info if assigned, empty optional otherwise
      */
@@ -141,6 +171,9 @@ private:
     // Reconnection state
     std::atomic<int> reconnectAttempts_;
     std::chrono::steady_clock::time_point lastReconnectTime_;
+    // Set on an explicit disconnect() so the socket-closed callback does not
+    // trigger an unwanted reconnect during teardown.
+    std::atomic<bool> intentionalClose_{false};
     
     // Channels
     std::unordered_map<std::string, std::shared_ptr<Channel>> channels_;
@@ -153,8 +186,28 @@ private:
     
     // Manager discovery
     std::unique_ptr<ManagerDiscovery> managerDiscovery_;
-    
+
+    // Enhanced (Slack-like) event surface, bound to this client
+    std::unique_ptr<EnhancedFeatures> enhanced_;
+
+    // Raw Socket.IO event listeners registered via on()
+    std::unordered_map<std::string, std::vector<RawHandler>> rawHandlers_;
+    mutable std::mutex rawHandlersMutex_;
+
     // Internal methods
+
+    /**
+     * Send the Socket.IO CONNECT packet carrying auth (apiKey/userId land in
+     * socket.handshake.auth, where the worker middleware reads them).
+     */
+    void sendSocketIoConnect();
+
+    /**
+     * Route a decoded Socket.IO EVENT to raw listeners and core handlers.
+     * @param event Event name
+     * @param payload Event payload as a JSON string (may be empty)
+     */
+    void dispatchSocketIoEvent(const std::string& event, const std::string& payload);
     
     /**
      * Get worker assignment from manager

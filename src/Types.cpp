@@ -5,9 +5,15 @@
 
 #include "../include/oddsockets/Types.hpp"
 #include <curl/curl.h>
+#include <libwebsockets.h>
 #include <sstream>
 #include <algorithm>
 #include <cmath>
+#include <thread>
+#include <atomic>
+#include <deque>
+#include <mutex>
+#include <cstring>
 
 namespace oddsockets {
 
@@ -302,49 +308,202 @@ std::future<Response> post(const std::string& url,
 } // namespace http
 
 // --- WebSocket Client (libwebsockets) ---
+//
+// A genuine WebSocket transport. libwebsockets carries only the raw text
+// frames; the Engine.IO v4 / Socket.IO packet framing on top of it lives in
+// OddSockets.cpp. Each client owns its own lws_context and a dedicated service
+// thread, so two clients (e.g. alice + bob in the demo) run independently.
+//
+// Thread-safety: sends are queued under a mutex from arbitrary caller threads
+// and flushed on the service thread. lws_cancel_service() - the one lws call
+// documented safe to invoke from another thread - wakes the service loop, which
+// then requests a writable callback to drain the queue.
 
 class LibWebSocketClient : public WebSocketClient {
 public:
     explicit LibWebSocketClient(const WebSocketClient::Config& config)
-        : config_(config), connected_(false) {}
+        : config_(config) {}
 
     ~LibWebSocketClient() override { disconnect(); }
 
     std::future<bool> connect() override {
         return std::async(std::launch::async, [this]() -> bool {
-            // Production: implement using libwebsockets lws_context + lws_client_connect_via_info
-            // or ixwebsocket ix::WebSocket for easier integration
-            connected_ = true;
-            if (config_.onConnected) config_.onConnected();
+            lws_set_log_level(LLL_ERR, nullptr);
+
+            struct lws_context_creation_info info;
+            memset(&info, 0, sizeof(info));
+            info.port = CONTEXT_PORT_NO_LISTEN;
+            info.protocols = protocols_;
+            info.user = this;
+            info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+
+            context_ = lws_create_context(&info);
+            if (!context_) return false;
+
+            // Parse worker URL into host/port/ssl. The Socket.IO path is fixed.
+            const std::string& url = config_.url;
+            bool useSsl = (url.rfind("https://", 0) == 0 || url.rfind("wss://", 0) == 0);
+            auto schemePos = url.find("://");
+            if (schemePos == std::string::npos) return false;
+            std::string rest = url.substr(schemePos + 3);
+
+            std::string host = rest;
+            int port = useSsl ? 443 : 80;
+            auto slash = rest.find('/');
+            if (slash != std::string::npos) host = rest.substr(0, slash);
+            auto colon = host.find(':');
+            if (colon != std::string::npos) {
+                port = std::atoi(host.substr(colon + 1).c_str());
+                host = host.substr(0, colon);
+            }
+            host_ = host;
+
+            static const char* kPath = "/socket.io/?EIO=4&transport=websocket";
+
+            struct lws_client_connect_info ci;
+            memset(&ci, 0, sizeof(ci));
+            ci.context = context_;
+            ci.address = host_.c_str();
+            ci.port = port;
+            ci.path = kPath;
+            ci.host = host_.c_str();
+            ci.origin = host_.c_str();
+            ci.protocol = "oddsockets";
+            ci.ssl_connection = useSsl ? LCCSCF_USE_SSL : 0;
+
+            wsi_ = lws_client_connect_via_info(&ci);
+            if (!wsi_) {
+                lws_context_destroy(context_);
+                context_ = nullptr;
+                return false;
+            }
+
+            shouldClose_ = false;
+            serviceThread_ = std::thread([this]() {
+                while (!shouldClose_) {
+                    lws_service(context_, 50);
+                }
+            });
+
             return true;
         });
     }
 
     void disconnect() override {
-        if (connected_) {
-            connected_ = false;
+        shouldClose_ = true;
+        if (context_) lws_cancel_service(context_);
+        if (serviceThread_.joinable()) serviceThread_.join();
+        if (context_) {
+            lws_context_destroy(context_);
+            context_ = nullptr;
+        }
+        if (connected_.exchange(false)) {
             if (config_.onDisconnected) config_.onDisconnected();
         }
     }
 
-    bool isConnected() const override { return connected_; }
+    bool isConnected() const override { return connected_.load(); }
 
     std::future<bool> send(const std::string& message) override {
-        return std::async(std::launch::async, [this, message]() -> bool {
-            if (!connected_) return false;
-            // Production: lws_write() or ix::WebSocket::send()
-            (void)message;
-            return true;
-        });
+        {
+            std::lock_guard<std::mutex> lock(sendMutex_);
+            sendQueue_.push_back(message);
+        }
+        if (context_) lws_cancel_service(context_);
+        std::promise<bool> p;
+        p.set_value(true);
+        return p.get_future();
     }
 
-    void processEvents() override {
-        // Production: lws_service() or ix::WebSocket poll
-    }
+    // The service thread pumps events itself; nothing to do here. Kept so
+    // single-threaded callers can still poke the loop harmlessly.
+    void processEvents() override {}
 
 private:
+    static int lwsCallback(struct lws* wsi, enum lws_callback_reasons reason,
+                           void* /*user*/, void* in, size_t len) {
+        auto* self = static_cast<LibWebSocketClient*>(lws_context_user(lws_get_context(wsi)));
+        if (!self) return 0;
+
+        switch (reason) {
+            case LWS_CALLBACK_CLIENT_ESTABLISHED:
+                self->connected_ = true;
+                if (self->config_.onConnected) self->config_.onConnected();
+                break;
+
+            case LWS_CALLBACK_CLIENT_RECEIVE:
+                if (in && len > 0) {
+                    self->rxBuffer_.append(static_cast<char*>(in), len);
+                    // Only dispatch once the whole WebSocket message has arrived.
+                    if (lws_is_final_fragment(wsi) && lws_remaining_packet_payload(wsi) == 0) {
+                        if (self->config_.onMessage) self->config_.onMessage(self->rxBuffer_);
+                        self->rxBuffer_.clear();
+                    }
+                }
+                break;
+
+            case LWS_CALLBACK_CLIENT_WRITEABLE: {
+                std::string msg;
+                bool more = false;
+                {
+                    std::lock_guard<std::mutex> lock(self->sendMutex_);
+                    if (!self->sendQueue_.empty()) {
+                        msg = std::move(self->sendQueue_.front());
+                        self->sendQueue_.pop_front();
+                    }
+                    more = !self->sendQueue_.empty();
+                }
+                if (!msg.empty()) {
+                    std::vector<unsigned char> buf(LWS_PRE + msg.size());
+                    memcpy(buf.data() + LWS_PRE, msg.data(), msg.size());
+                    lws_write(wsi, buf.data() + LWS_PRE, msg.size(), LWS_WRITE_TEXT);
+                }
+                if (more) lws_callback_on_writable(wsi);
+                break;
+            }
+
+            case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
+                // Woken by lws_cancel_service() after send() queued a frame.
+                if (self->wsi_) lws_callback_on_writable(self->wsi_);
+                break;
+
+            case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
+                self->connected_ = false;
+                if (self->config_.onError) {
+                    self->config_.onError(in ? static_cast<const char*>(in) : "Connection error");
+                }
+                break;
+
+            case LWS_CALLBACK_CLOSED:
+            case LWS_CALLBACK_CLIENT_CLOSED:
+                self->connected_ = false;
+                self->wsi_ = nullptr;
+                if (self->config_.onDisconnected) self->config_.onDisconnected();
+                break;
+
+            default:
+                break;
+        }
+        return 0;
+    }
+
+    static const struct lws_protocols protocols_[];
+
     WebSocketClient::Config config_;
-    bool connected_;
+    struct lws_context* context_ = nullptr;
+    struct lws* wsi_ = nullptr;
+    std::atomic<bool> connected_{false};
+    std::atomic<bool> shouldClose_{false};
+    std::thread serviceThread_;
+    std::string host_;
+    std::string rxBuffer_;
+    std::deque<std::string> sendQueue_;
+    std::mutex sendMutex_;
+};
+
+const struct lws_protocols LibWebSocketClient::protocols_[] = {
+    { "oddsockets", LibWebSocketClient::lwsCallback, 0, 65536 },
+    { nullptr, nullptr, 0, 0 }
 };
 
 std::unique_ptr<WebSocketClient> WebSocketClient::create(const Config& config) {
