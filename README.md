@@ -25,6 +25,48 @@ channel->subscribe([](const std::string& msg) { std::cout << msg << std::endl; }
 channel->publish("{\"text\":\"Hello from C++\"}");
 ```
 
+## Enhanced Features
+
+Enhanced (Slack-like) events layer on top of the core pub/sub. The **send** side
+lives on `client.enhanced()`; each call is fire-and-forget (`void`) and emits a real
+worker event over the live socket. The matching **broadcast** arrives on the raw
+`client.on("<event>", ...)` surface as a JSON payload string, so any subscriber in
+the channel room can react.
+
+```cpp
+#include <oddsockets/OddSockets.hpp>
+#include <iostream>
+
+oddsockets::Config config;
+config.apiKey = "YOUR_API_KEY";
+config.userId = "alice";
+config.autoConnect = false;
+
+oddsockets::OddSockets client(config);
+client.connect().get();
+
+auto channel = client.channel("room-42");
+channel->subscribe([](const std::string&) {}).get();
+
+// Receive-path: enhanced broadcasts arrive on the raw on() surface as JSON strings
+client.on("user_typing",    [](const std::string& payload) { std::cout << "typing: "   << payload << "\n"; });
+client.on("reaction_added", [](const std::string& payload) { std::cout << "reaction: " << payload << "\n"; });
+
+// Send-path: fire enhanced actions over the live socket
+client.enhanced().startTyping("alice", "room-42");
+client.enhanced().addReaction("msg-1", "room-42", ":thumbsup:", "alice", "Alice");
+```
+
+### Event surface
+
+| Area | Send (`client.enhanced()`) | Broadcast (`client.on(...)`) |
+|---|---|---|
+| **Typing** | `startTyping(userId, channel)` · `stopTyping(userId, channel)` | `user_typing` · `user_stopped_typing` |
+| **Reactions** | `addReaction(messageId, channel, emoji, userId, userName)` · `removeReaction(messageId, channel, emoji, userId)` | `reaction_added` · `reaction_removed` |
+
+The C++ enhanced surface is deliberately focused on typing and reactions. Any other
+worker event your channel emits is still available directly on `client.on("<event>", ...)`.
+
 ## Get a Free API Key
 
 ```bash

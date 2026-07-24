@@ -697,6 +697,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="#enhanced" class="nav-link">
+                            <i class="fas fa-bolt nav-icon"></i>
+                            Enhanced Features
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="#performance" class="nav-link">
                             <i class="fas fa-chart-line nav-icon"></i>
                             Performance
@@ -861,8 +867,8 @@ cmake</code></pre>
                                 Copy
                             </button>
                         </div>
-                        <pre><code class="language-bash">git clone https://github.com/oddsockets/cpp-sdk.git
-cd cpp-sdk
+                        <pre><code class="language-bash">git clone https://github.com/jyswee/oddsockets-cpp-sdk.git
+cd oddsockets-cpp-sdk
 mkdir build && cd build
 cmake ..
 make install</code></pre>
@@ -1268,6 +1274,46 @@ config.errorCallback = [](oddsockets::ErrorCode error, const std::string&) {
                         <p>Browse all available examples including embedded demos, IoT applications, and cross-platform tutorials</p>
                     </a>
                 </div>
+            </section>
+
+            <section id="enhanced" class="section">
+                <h2 class="section-title">
+                    <i class="fas fa-bolt"></i>
+                    Enhanced Features
+                </h2>
+
+                <p>Enhanced (Slack-like) events layer on top of the core pub/sub. The <strong>send</strong> side lives on <code>client.enhanced()</code> &mdash; each call is fire-and-forget (<code>void</code>) and emits a real worker event over the live socket. The matching <strong>broadcast</strong> arrives on the raw <code>client.on("&lt;event&gt;", ...)</code> surface as a JSON payload string, so any subscriber in the channel room can react.</p>
+
+                <h3>Typing &amp; reactions</h3>
+                <pre><code>#include &lt;oddsockets/OddSockets.hpp&gt;
+#include &lt;iostream&gt;
+
+oddsockets::Config config;
+config.apiKey = "YOUR_API_KEY";
+config.userId = "alice";
+config.autoConnect = false;
+
+oddsockets::OddSockets client(config);
+client.connect().get();
+
+auto channel = client.channel("room-42");
+channel-&gt;subscribe([](const std::string&amp;) {}).get();
+
+// Receive-path: enhanced broadcasts arrive on the raw on() surface as JSON strings
+client.on("user_typing",    [](const std::string&amp; payload) { std::cout &lt;&lt; "typing: "   &lt;&lt; payload &lt;&lt; "\n"; });
+client.on("reaction_added", [](const std::string&amp; payload) { std::cout &lt;&lt; "reaction: " &lt;&lt; payload &lt;&lt; "\n"; });
+
+// Send-path: fire enhanced actions over the live socket
+client.enhanced().startTyping("alice", "room-42");
+client.enhanced().addReaction("msg-1", "room-42", ":thumbsup:", "alice", "Alice");</code></pre>
+
+                <h3>Event surface</h3>
+                <ul>
+                    <li><strong>Typing</strong> &mdash; <code>startTyping(userId, channel)</code>, <code>stopTyping(userId, channel)</code> &rarr; broadcast <code>user_typing</code>, <code>user_stopped_typing</code></li>
+                    <li><strong>Reactions</strong> &mdash; <code>addReaction(messageId, channel, emoji, userId, userName)</code>, <code>removeReaction(messageId, channel, emoji, userId)</code> &rarr; broadcast <code>reaction_added</code>, <code>reaction_removed</code></li>
+                </ul>
+
+                <p>The C++ enhanced surface is deliberately focused on typing and reactions. Any other worker event your channel emits is still available directly on <code>client.on("&lt;event&gt;", ...)</code>.</p>
             </section>
 
             <section id="performance" class="section">
