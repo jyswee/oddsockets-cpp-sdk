@@ -126,10 +126,74 @@ std::future<PublishResult> Channel::publish(const std::string& message, const Pu
 }
 
 std::future<std::vector<std::string>> Channel::getHistory(const HistoryOptions& options) {
-    return std::async(std::launch::async, [this, options]() -> std::vector<std::string> {
-        (void)options;
+    auto promise = std::make_shared<std::promise<std::vector<std::string>>>();
+    auto future = promise->get_future();
+
+    if (!client_ || client_->getState() != ConnectionState::Connected) {
+        promise->set_value({});
+        return future;
+    }
+
+    // Register the waiter before emitting so the response can never race ahead.
+    {
+        std::lock_guard<std::mutex> lock(pendingHistoryMutex_);
+        pendingHistory_ = promise;
+    }
+
+    std::string payload = "{\"channel\":\"" + jsonEscape(name_) + "\",\"count\":" +
+                          std::to_string(options.count > 0 ? options.count : 50);
+    if (options.startTime) payload += ",\"start\":\"" + jsonEscape(*options.startTime) + "\"";
+    if (options.endTime)   payload += ",\"end\":\"" + jsonEscape(*options.endTime) + "\"";
+    payload += "}";
+
+    // Query the shared store over the real transport; the worker replies with a
+    // query:true "history" event that handleHistory() correlates. Do NOT fall
+    // back to local history - that only reflects locally observed messages.
+    client_->emit("get_history", payload);
+
+    // Bound the wait so a lost response can't hang the caller.
+    return std::async(std::launch::async,
+                      [this, fut = std::move(future), promise]() mutable -> std::vector<std::string> {
+        if (fut.wait_for(std::chrono::seconds(10)) == std::future_status::ready) {
+            return fut.get();
+        }
+        std::lock_guard<std::mutex> lock(pendingHistoryMutex_);
+        if (pendingHistory_ == promise) pendingHistory_.reset();
         return {};
     });
+}
+
+void Channel::handleHistory(const json::Value& data) {
+    // The worker emits "history" both as the explicit get_history RESPONSE
+    // (query:true) and as a fire-and-forget on-join snapshot (~10 msgs, no query
+    // flag). Only the query:true response may resolve a pending getHistory
+    // waiter; ignore the snapshot so it can't return the wrong data.
+    // BUG-2026-0727-0012.
+    if (!(data.has("query") &&
+          data.get("query").getType() == json::Value::Bool &&
+          data.get("query").asBool())) {
+        return;
+    }
+
+    std::vector<std::string> messages;
+    if (data.has("messages")) {
+        const json::Value& arr = data.get("messages");
+        if (arr.getType() == json::Value::Array) {
+            for (size_t i = 0; i < arr.size(); ++i) {
+                messages.push_back(arr.at(i).toString());
+            }
+        }
+    }
+
+    std::shared_ptr<std::promise<std::vector<std::string>>> promise;
+    {
+        std::lock_guard<std::mutex> lock(pendingHistoryMutex_);
+        promise = pendingHistory_;
+        pendingHistory_.reset();
+    }
+    if (promise) {
+        try { promise->set_value(std::move(messages)); } catch (...) {}
+    }
 }
 
 std::future<PresenceInfo> Channel::getPresence() {

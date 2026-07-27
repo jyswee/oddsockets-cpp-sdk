@@ -155,6 +155,11 @@ private:
     // Presence information
     PresenceInfo presenceInfo_;
     mutable std::mutex presenceMutex_;
+
+    // In-flight getHistory waiter, fulfilled by the worker's query:true
+    // "history" response routed through handleHistory (BUG-2026-0727-0012).
+    std::shared_ptr<std::promise<std::vector<std::string>>> pendingHistory_;
+    mutable std::mutex pendingHistoryMutex_;
     
     // Thread safety
     mutable std::mutex callbackMutex_;

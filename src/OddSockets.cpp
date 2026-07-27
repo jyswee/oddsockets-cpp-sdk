@@ -415,6 +415,18 @@ void OddSockets::dispatchSocketIoEvent(const std::string& event, const std::stri
         std::lock_guard<std::mutex> lock(channelsMutex_);
         auto it = channels_.find(channelName);
         if (it != channels_.end()) it->second->subscribed_ = false;
+    } else if (event == "history") {
+        // Route to the owning channel so a pending getHistory() waiter can be
+        // resolved (gated on query:true inside Channel::handleHistory).
+        std::shared_ptr<Channel> ch;
+        {
+            std::lock_guard<std::mutex> lock(channelsMutex_);
+            auto it = channels_.find(channelName);
+            if (it != channels_.end()) ch = it->second;
+        }
+        if (ch) {
+            try { ch->handleHistory(json::parse(payload)); } catch (...) {}
+        }
     } else if (event == "error") {
         std::string msg;
         extractRawValue(payload, "message", msg);
