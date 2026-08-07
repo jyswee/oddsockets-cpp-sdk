@@ -33,6 +33,15 @@ constexpr size_t MAX_MESSAGE_SIZE_KB = 32;
 
 // Default Configuration Values
 constexpr const char* DEFAULT_MANAGER_URL = "https://connect.oddsockets.tyga.network";
+
+// Environment variable consulted when no manager URL has been configured.
+constexpr const char* MANAGER_URL_ENV_VAR = "ODDSOCKETS_MANAGER_URL";
+
+// Returns the manager URL used when the caller configures none: the
+// ODDSOCKETS_MANAGER_URL environment value if set, otherwise
+// DEFAULT_MANAGER_URL. Defined in ManagerDiscovery.cpp.
+std::string defaultManagerUrl();
+
 constexpr int DEFAULT_RECONNECT_ATTEMPTS = 5;
 constexpr int DEFAULT_RECONNECT_DELAY_MS = 1000;
 constexpr int DEFAULT_CONNECTION_TIMEOUT_MS = 10000;
@@ -143,7 +152,10 @@ struct Config {
     
     // Optional
     std::string userId;
-    std::string managerUrl = DEFAULT_MANAGER_URL;
+
+    // The manager the client will contact. Resolved from ODDSOCKETS_MANAGER_URL
+    // and then the built-in default when left unset; used verbatim either way.
+    std::string managerUrl = defaultManagerUrl();
     
     // Connection Options
     bool autoConnect = true;
