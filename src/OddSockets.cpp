@@ -77,7 +77,7 @@ OddSockets::OddSockets(const Config& config)
         throw Exception(ErrorCode::InvalidApiKey, "API key is required");
     }
 
-    managerDiscovery_ = std::make_unique<ManagerDiscovery>();
+    managerDiscovery_ = std::make_unique<ManagerDiscovery>(config_.managerUrl);
     enhanced_ = std::make_unique<EnhancedFeatures>(this);
     generateClientIdentifier();
 
@@ -198,7 +198,7 @@ std::future<std::vector<PublishResult>> OddSockets::publishBulk(const std::vecto
 std::future<bool> OddSockets::getWorkerAssignment() {
     return std::async(std::launch::async, [this]() -> bool {
         try {
-            std::string managerUrl = managerDiscovery_->discoverManagerUrl(config_.apiKey).get();
+            std::string managerUrl = managerDiscovery_->discoverManagerUrl().get();
             std::string url = managerUrl + "/api/cluster/select-worker?apiKey=" +
                 config_.apiKey + "&userId=" +
                 (config_.userId.empty() ? clientIdentifier_ : config_.userId) +
