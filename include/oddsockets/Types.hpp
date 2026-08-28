@@ -127,6 +127,21 @@ using HistoryCallback = std::function<void(const std::vector<std::string>& messa
 using PresenceCallback = std::function<void(const std::string& action, const std::string& userId)>;
 using LogCallback = std::function<void(LogLevel level, const std::string& message)>;
 
+// Minted-token auth: the shape returned by a TokenProvider. Fill `token` with
+// the JWT; expiry is resolved from `exp` (epoch seconds), then `expiresAt`
+// (ISO 8601), then the JWT's own exp claim when both are left unset.
+struct Token {
+    std::string token;
+    std::string expiresAt;   // ISO 8601, optional
+    long long exp = 0;       // epoch seconds, optional
+    std::string baseUrl;     // optional
+    std::string identity;    // optional
+};
+
+// Callback the SDK invokes whenever it needs a fresh token (every connect and
+// each pre-expiry refresh). Throw on failure.
+using TokenProvider = std::function<Token()>;
+
 // Configuration Structures
 struct PublishOptions {
     int ttlSeconds = 0;
@@ -147,9 +162,15 @@ struct HistoryOptions {
 };
 
 struct Config {
-    // Required
+    // Credentials: either an apiKey OR a tokenProvider is required.
     std::string apiKey;
-    
+
+    // Keyless auth: mint a short-lived token via your backend instead of
+    // embedding an API key. Called for a fresh token before every (re)connect
+    // and again tokenRefreshLeadMs before the current token expires.
+    TokenProvider tokenProvider;
+    int tokenRefreshLeadMs = 120000;
+
     // Optional
     std::string userId;
 

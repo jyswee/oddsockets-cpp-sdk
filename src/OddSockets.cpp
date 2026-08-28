@@ -5,8 +5,78 @@
 #include "../include/oddsockets/OddSockets.hpp"
 #include "../include/oddsockets/EnhancedFeatures.hpp"
 #include <sstream>
+#include <chrono>
+#include <ctime>
+#include <cstdio>
+#include <cstdlib>
 
 namespace oddsockets {
+
+static bool extractRawValue(const std::string& obj, const std::string& key, std::string& out);
+
+// ---- minted-token helpers ----
+
+static long long nowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+static std::string base64urlDecode(const std::string& in) {
+    static const std::string alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string b64 = in;
+    for (auto& c : b64) {
+        if (c == '-') c = '+';
+        else if (c == '_') c = '/';
+    }
+    while (b64.size() % 4 != 0) b64 += '=';
+    std::string out;
+    int val = 0, bits = 0;
+    for (char c : b64) {
+        if (c == '=') break;
+        auto idx = alphabet.find(c);
+        if (idx == std::string::npos) return "";
+        val = (val << 6) | static_cast<int>(idx);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out += static_cast<char>((val >> bits) & 0xFF);
+        }
+    }
+    return out;
+}
+
+// Pull the exp claim (epoch seconds) out of a JWT and return it in epoch ms,
+// or 0 when the token cannot be decoded.
+static long long expiryFromJwt(const std::string& jwt) {
+    auto dot1 = jwt.find('.');
+    if (dot1 == std::string::npos) return 0;
+    auto dot2 = jwt.find('.', dot1 + 1);
+    if (dot2 == std::string::npos) return 0;
+    std::string payload = base64urlDecode(jwt.substr(dot1 + 1, dot2 - dot1 - 1));
+    if (payload.empty()) return 0;
+    std::string expRaw;
+    if (!extractRawValue(payload, "exp", expRaw)) return 0;
+    long long exp = std::atoll(expRaw.c_str());
+    return exp > 0 ? exp * 1000LL : 0;
+}
+
+// Parse an ISO 8601 UTC timestamp ("2026-08-28T07:38:33.000Z") to epoch ms.
+static long long parseIsoMs(const std::string& iso) {
+    int y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0;
+    if (std::sscanf(iso.c_str(), "%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &s) != 6) {
+        return 0;
+    }
+    std::tm tm = {};
+    tm.tm_year = y - 1900;
+    tm.tm_mon = mo - 1;
+    tm.tm_mday = d;
+    tm.tm_hour = h;
+    tm.tm_min = mi;
+    tm.tm_sec = s;
+    time_t t = timegm(&tm);
+    return t > 0 ? static_cast<long long>(t) * 1000LL : 0;
+}
 
 // Extract the raw JSON value for `key` out of an object string. Handles balanced
 // objects/arrays, quoted strings, and primitives - needed because the worker's
@@ -73,8 +143,9 @@ OddSockets::OddSockets(const Config& config)
     , reconnectAttempts_(0)
     , eventThreadRunning_(false) {
 
-    if (config_.apiKey.empty()) {
-        throw Exception(ErrorCode::InvalidApiKey, "API key is required");
+    if (config_.apiKey.empty() && !config_.tokenProvider) {
+        throw Exception(ErrorCode::InvalidApiKey,
+                        "Either an API key or a tokenProvider is required");
     }
 
     managerDiscovery_ = std::make_unique<ManagerDiscovery>(config_.managerUrl);
@@ -100,6 +171,11 @@ std::future<bool> OddSockets::connect() {
         intentionalClose_ = false;
 
         try {
+            // Step 0: in token mode, always start from a fresh minted token.
+            if (isTokenMode() && !resolveToken()) {
+                setState(ConnectionState::Error);
+                return false;
+            }
             if (!getWorkerAssignment().get()) {
                 setState(ConnectionState::Error);
                 return false;
@@ -124,6 +200,7 @@ std::future<bool> OddSockets::connect() {
                 return false;
             }
             reconnectAttempts_ = 0;
+            startTokenRefresh();
             return true;
         } catch (const std::exception& e) {
             handleError(ErrorCode::ConnectionFailed, e.what());
@@ -139,6 +216,7 @@ std::future<bool> OddSockets::connect() {
 void OddSockets::disconnect() {
     intentionalClose_ = true;
     eventThreadRunning_ = false;
+    stopTokenRefresh();
     if (websocket_) {
         websocket_->disconnect();
         websocket_.reset();
@@ -199,8 +277,15 @@ std::future<bool> OddSockets::getWorkerAssignment() {
     return std::async(std::launch::async, [this]() -> bool {
         try {
             std::string managerUrl = managerDiscovery_->discoverManagerUrl().get();
-            std::string url = managerUrl + "/api/cluster/select-worker?apiKey=" +
-                config_.apiKey + "&userId=" +
+            std::string credentialParam;
+            if (isTokenMode()) {
+                std::lock_guard<std::mutex> lock(tokenMutex_);
+                credentialParam = "token=" + currentToken_;
+            } else {
+                credentialParam = "apiKey=" + config_.apiKey;
+            }
+            std::string url = managerUrl + "/api/cluster/select-worker?" +
+                credentialParam + "&userId=" +
                 (config_.userId.empty() ? clientIdentifier_ : config_.userId) +
                 "&clientIdentifier=" + clientIdentifier_;
 
@@ -242,7 +327,12 @@ std::future<bool> OddSockets::connectToWorker() {
         ws.sslVerifyPeer = config_.sslVerifyPeer;
         ws.caCertPath = config_.caCertPath;
         ws.connectionTimeoutMs = config_.connectionTimeoutMs;
-        ws.headers["Authorization"] = "Bearer " + config_.apiKey;
+        if (isTokenMode()) {
+            std::lock_guard<std::mutex> lock(tokenMutex_);
+            ws.headers["Authorization"] = "Bearer " + currentToken_;
+        } else {
+            ws.headers["Authorization"] = "Bearer " + config_.apiKey;
+        }
         ws.onConnected = [this]() { onWebSocketConnected(); };
         ws.onDisconnected = [this]() { onWebSocketDisconnected(); };
         ws.onMessage = [this](const std::string& m) { onWebSocketMessage(m); };
@@ -272,7 +362,96 @@ void OddSockets::log(LogLevel level, const std::string& msg) {
 }
 
 void OddSockets::generateClientIdentifier() {
-    clientIdentifier_ = oddsockets::generateClientIdentifier(config_.apiKey, config_.userId);
+    // In token mode there is no apiKey to seed the stickiness hash with.
+    const std::string& seed = config_.apiKey.empty() ? std::string("token-client")
+                                                     : config_.apiKey;
+    clientIdentifier_ = oddsockets::generateClientIdentifier(seed, config_.userId);
+}
+
+bool OddSockets::resolveToken() {
+    try {
+        Token minted = config_.tokenProvider();
+        if (minted.token.empty()) {
+            handleError(ErrorCode::InvalidApiKey, "tokenProvider returned an empty token");
+            return false;
+        }
+        long long expiresAtMs = 0;
+        if (minted.exp > 0) {
+            expiresAtMs = minted.exp * 1000LL;
+        } else if (!minted.expiresAt.empty()) {
+            expiresAtMs = parseIsoMs(minted.expiresAt);
+        }
+        if (expiresAtMs == 0) {
+            expiresAtMs = expiryFromJwt(minted.token);
+        }
+        {
+            std::lock_guard<std::mutex> lock(tokenMutex_);
+            currentToken_ = minted.token;
+            tokenExpiresAtMs_ = expiresAtMs;
+        }
+        log(LogLevel::Info, "Resolved auth token via tokenProvider");
+        return true;
+    } catch (const std::exception& e) {
+        handleError(ErrorCode::InvalidApiKey,
+                    std::string("tokenProvider failed to mint a token: ") + e.what());
+        return false;
+    }
+}
+
+void OddSockets::startTokenRefresh() {
+    stopTokenRefresh();
+    if (!isTokenMode()) return;
+    {
+        std::lock_guard<std::mutex> lock(tokenMutex_);
+        if (tokenExpiresAtMs_ <= 0) return; // unknown expiry - nothing to schedule
+    }
+    tokenRefreshRunning_ = true;
+    tokenRefreshThread_ = std::make_unique<std::thread>([this]() { tokenRefreshLoop(); });
+}
+
+void OddSockets::stopTokenRefresh() {
+    tokenRefreshRunning_ = false;
+    tokenRefreshCv_.notify_all();
+    if (tokenRefreshThread_ && tokenRefreshThread_->joinable()) {
+        tokenRefreshThread_->join();
+    }
+    tokenRefreshThread_.reset();
+}
+
+void OddSockets::tokenRefreshLoop() {
+    while (tokenRefreshRunning_) {
+        long long expiresAtMs;
+        {
+            std::lock_guard<std::mutex> lock(tokenMutex_);
+            expiresAtMs = tokenExpiresAtMs_;
+        }
+        if (expiresAtMs <= 0) return;
+
+        long long delayMs = expiresAtMs - nowMs() - config_.tokenRefreshLeadMs;
+        // Floor the wait so a token whose lifetime is shorter than the refresh
+        // lead cannot spin the provider in a tight loop.
+        if (delayMs < 1000) delayMs = 1000;
+        {
+            std::unique_lock<std::mutex> lock(tokenRefreshCvMutex_);
+            tokenRefreshCv_.wait_for(lock, std::chrono::milliseconds(delayMs),
+                                     [this]() { return !tokenRefreshRunning_.load(); });
+        }
+        if (!tokenRefreshRunning_) return;
+
+        if (resolveToken()) {
+            long long refreshed;
+            {
+                std::lock_guard<std::mutex> lock(tokenMutex_);
+                refreshed = tokenExpiresAtMs_;
+            }
+            dispatchSocketIoEvent("token_refreshed",
+                                  "{\"expiresAt\":" + std::to_string(refreshed) + "}");
+            // Loop re-arms against the new expiry.
+        } else {
+            dispatchSocketIoEvent("token_refresh_failed", "{}");
+            return; // keep the current connection; next connect re-mints
+        }
+    }
 }
 
 void OddSockets::scheduleReconnect() {
@@ -351,7 +530,13 @@ void OddSockets::onWebSocketError(const std::string& error) {
 void OddSockets::sendSocketIoConnect() {
     if (!websocket_) return;
     std::string userId = config_.userId.empty() ? clientIdentifier_ : config_.userId;
-    std::string frame = "40{\"apiKey\":\"" + config_.apiKey + "\",\"userId\":\"" + userId + "\"}";
+    std::string frame;
+    if (isTokenMode()) {
+        std::lock_guard<std::mutex> lock(tokenMutex_);
+        frame = "40{\"token\":\"" + currentToken_ + "\",\"userId\":\"" + userId + "\"}";
+    } else {
+        frame = "40{\"apiKey\":\"" + config_.apiKey + "\",\"userId\":\"" + userId + "\"}";
+    }
     websocket_->send(frame);
 }
 
