@@ -20,6 +20,7 @@
 #include <mutex>
 #include <atomic>
 #include <thread>
+#include <condition_variable>
 #include <string>
 #include <functional>
 #include <vector>
@@ -168,6 +169,15 @@ private:
     std::string sessionId_;
     std::string clientIdentifier_;
     
+    // Minted-token auth state (tokenProvider mode)
+    std::string currentToken_;
+    long long tokenExpiresAtMs_ = 0;
+    mutable std::mutex tokenMutex_;
+    std::unique_ptr<std::thread> tokenRefreshThread_;
+    std::atomic<bool> tokenRefreshRunning_{false};
+    std::condition_variable tokenRefreshCv_;
+    std::mutex tokenRefreshCvMutex_;
+
     // Reconnection state
     std::atomic<int> reconnectAttempts_;
     std::chrono::steady_clock::time_point lastReconnectTime_;
@@ -255,6 +265,13 @@ private:
      * Generate consistent client identifier for session stickiness
      */
     void generateClientIdentifier();
+
+    // Minted-token auth (tokenProvider mode)
+    bool isTokenMode() const { return static_cast<bool>(config_.tokenProvider); }
+    bool resolveToken();
+    void startTokenRefresh();
+    void stopTokenRefresh();
+    void tokenRefreshLoop();
     
     /**
      * Event processing thread function

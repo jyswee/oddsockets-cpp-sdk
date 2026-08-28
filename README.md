@@ -67,6 +67,51 @@ client.enhanced().addReaction("msg-1", "room-42", ":thumbsup:", "alice", "Alice"
 The C++ enhanced surface is deliberately focused on typing and reactions. Any other
 worker event your channel emits is still available directly on `client.on("<event>", ...)`.
 
+## Token auth for game clients (`tokenProvider`)
+
+Ship game clients **without embedding an API key**. Give the config a `tokenProvider`
+callback instead: your backend verifies the player (its own session/JWT), calls the
+OddSockets `POST /v1/token` mint endpoint with **its** API key server-side, and returns
+the short-lived token. The SDK invokes your callback for a fresh token before every
+connect, and silently re-mints it before expiry on a background thread while the client
+stays connected.
+
+```cpp
+#include <oddsockets/OddSockets.hpp>
+
+oddsockets::Config config;
+config.userId = "player-1";
+// No apiKey. The SDK calls this whenever it needs a fresh token
+// (every connect + each pre-expiry refresh). Throw on failure.
+config.tokenProvider = []() -> oddsockets::Token {
+    // Ask YOUR backend for an OddSockets token, e.g.
+    // POST https://your-game-backend.example.com/oddsockets/token
+    // (authenticated with the player's own session).
+    oddsockets::Token t;
+    t.token = fetchTokenFromMyBackend(); // the minted JWT
+    // Optional: t.exp (epoch seconds) or t.expiresAt (ISO 8601).
+    // Leave both unset and the SDK reads the JWT's own exp claim.
+    return t;
+};
+
+auto client = std::make_unique<oddsockets::OddSockets>(config);
+client->on("token_refreshed", [](const std::string& payload) {
+    // {"expiresAt":<epoch ms>}
+});
+client->connect().get();
+```
+
+Notes:
+
+- Either an `apiKey` **or** a `tokenProvider` is required — the constructor throws
+  `InvalidApiKey` when the config has neither.
+- The refreshed token is re-minted `config.tokenRefreshLeadMs` (default `120000`) before
+  the current one expires, on a dedicated background thread that is joined on
+  `disconnect()`. A failed refresh emits `token_refresh_failed` and keeps the current
+  connection; the next connect mints fresh.
+- Expiry resolution order: `Token::exp` (epoch seconds) → `Token::expiresAt` (ISO 8601)
+  → the `exp` claim decoded from the JWT itself.
+
 ## Get a Free API Key
 
 ```bash
