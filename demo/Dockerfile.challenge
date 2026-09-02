@@ -1,0 +1,37 @@
+# OddSockets C++ SDK - two-client CHALLENGE regression (live QA)
+#
+#   docker build -f demo/Dockerfile.challenge -t oddsockets-cpp-challenge .
+#   docker run --rm -e OS_KEY="ak_..." \
+#     -e ODDSOCKETS_MANAGER_URL="https://manageroddsockets.hq.tyga.dev" \
+#     oddsockets-cpp-challenge
+#
+# The SDK is compiled from source at image-build time (single g++), so a broken
+# SDK fails the build. Exit 0 = all assertions PASS.
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      g++ \
+      libc6-dev \
+      libwebsockets-dev \
+      libcurl4-openssl-dev \
+      libssl-dev \
+      pkg-config \
+      ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /sdk
+COPY . /sdk
+
+RUN g++ -std=c++17 -O2 -Wall -I include \
+      demo/challenge_demo.cpp \
+      src/Types.cpp \
+      src/OddSockets.cpp \
+      src/Channel.cpp \
+      src/EnhancedFeatures.cpp \
+      src/ManagerDiscovery.cpp \
+      -o /usr/local/bin/oddsockets-challenge \
+      $(pkg-config --cflags --libs libwebsockets) \
+      -lcurl -lssl -lcrypto -lpthread
+
+CMD ["oddsockets-challenge"]
