@@ -27,7 +27,7 @@ constexpr int VERSION_MAJOR = 1;
 constexpr int VERSION_MINOR = 0;
 constexpr int VERSION_PATCH = 0;
 
-// Message Size Limits (industry standard - matches PubNub and JavaScript SDK)
+// Platform message size limit, enforced server-side
 constexpr size_t MAX_MESSAGE_SIZE = 32768;  // 32KB in bytes
 constexpr size_t MAX_MESSAGE_SIZE_KB = 32;
 
@@ -221,6 +221,21 @@ struct SessionInfo {
     std::string clientIdentifier;
     std::chrono::system_clock::time_point createdAt;
     std::chrono::system_clock::time_point lastActivity;
+};
+
+// Usage / analytics statistics for the calling API key's owner scope.
+//
+// Every tile is genuinely optional: the manager returns JSON null for a tile it
+// cannot compute yet, which is NOT a real zero. std::nullopt preserves that
+// distinction - never substitute 0 for a missing tile.
+struct UsageStats {
+    std::optional<long long> mau;
+    std::optional<long long> dau;
+    std::optional<long long> totalMessages;
+    std::optional<double> errorRate;
+    std::string ownerScope;
+    std::string detail;
+    std::string timestamp;
 };
 
 // Publish Result

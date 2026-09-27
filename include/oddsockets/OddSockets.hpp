@@ -143,7 +143,20 @@ public:
      * @return Future that resolves to array of publish results
      */
     std::future<std::vector<PublishResult>> publishBulk(const std::vector<BulkMessage>& messages);
-    
+
+    /**
+     * Fetch usage / analytics statistics for the API key's owner scope.
+     *
+     * REQUIRES an API key: keyless (tokenProvider) clients have no owner scope
+     * to query and the returned future throws std::runtime_error. Discovers the
+     * manager the same way worker selection does, then GETs
+     * {managerUrl}/api/tenant/usage with an "X-API-Key" header. Tiles the
+     * manager reported as null are preserved as std::nullopt - never coerced to
+     * zero.
+     * @return Future that resolves to a UsageStats value
+     */
+    std::future<UsageStats> getUsageStats();
+
     /**
      * Get SDK version string
      * @return Version string

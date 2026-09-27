@@ -273,6 +273,67 @@ std::future<std::vector<PublishResult>> OddSockets::publishBulk(const std::vecto
     });
 }
 
+std::future<UsageStats> OddSockets::getUsageStats() {
+    return std::async(std::launch::async, [this]() -> UsageStats {
+        // Keyless/token clients have no owner scope to query. Mirror the JS
+        // SDK's guard exactly (message text is contract).
+        if (isTokenMode() || config_.apiKey.empty()) {
+            throw std::runtime_error(
+                "getUsageStats requires an apiKey (keyless/token clients have no owner scope to query)");
+        }
+
+        // Discover the manager exactly as worker selection does.
+        std::string managerUrl = managerDiscovery_->discoverManagerUrl().get();
+        std::string url = managerUrl + "/api/tenant/usage";
+
+        // Same http transport as getWorkerAssignment, plus the X-API-Key header.
+        auto resp = http::get(url, {{"X-API-Key", config_.apiKey},
+                                    {"User-Agent", "OddSockets-CPP-SDK/1.0.0"}},
+                              config_.connectionTimeoutMs).get();
+        if (!resp.success) {
+            throw std::runtime_error("Usage stats request failed: " + resp.error);
+        }
+
+        auto data = json::parse(resp.body);
+
+        // PRESERVE nulls: a tile parses to a value only when it is genuinely a
+        // JSON number; Null (or absent) stays std::nullopt, never 0.
+        auto numberTile = [](const json::Value& tiles, const std::string& key)
+                -> std::optional<double> {
+            if (!tiles.has(key)) return std::nullopt;
+            const auto& v = tiles.get(key);
+            if (v.getType() != json::Value::Number) return std::nullopt;
+            return v.asNumber();
+        };
+        auto stringField = [](const json::Value& obj, const std::string& key)
+                -> std::string {
+            if (!obj.has(key)) return {};
+            const auto& v = obj.get(key);
+            return v.getType() == json::Value::String ? v.asString() : std::string{};
+        };
+
+        UsageStats stats;
+        if (data.has("tiles")) {
+            const auto& tiles = data.get("tiles");
+            if (auto mau = numberTile(tiles, "mau"))
+                stats.mau = static_cast<long long>(*mau);
+            if (auto dau = numberTile(tiles, "dau"))
+                stats.dau = static_cast<long long>(*dau);
+            if (auto tm = numberTile(tiles, "totalMessages"))
+                stats.totalMessages = static_cast<long long>(*tm);
+            if (auto er = numberTile(tiles, "errorRate"))
+                stats.errorRate = *er;
+        }
+        stats.ownerScope = stringField(data, "ownerScope");
+        stats.detail = stringField(data, "detail");
+        stats.timestamp = stringField(data, "timestamp");
+
+        log(LogLevel::Info, "Fetched usage stats for owner scope: " +
+            (stats.ownerScope.empty() ? std::string("(unknown)") : stats.ownerScope));
+        return stats;
+    });
+}
+
 std::future<bool> OddSockets::getWorkerAssignment() {
     return std::async(std::launch::async, [this]() -> bool {
         try {
