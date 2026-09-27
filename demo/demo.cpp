@@ -16,7 +16,7 @@
 //   broadcasts across the wire.
 //
 // Run:
-//   export ODDSOCKETS_API_KEY="ak_..."   // get a free key: see README
+//   export ODDSOCKETS_API_KEY="ak_..."   // get an API key: see README
 //   ./oddsockets-demo
 //
 // Exit codes: 0 all green, 1 missing key / setup error, 2 a scenario timed out.
@@ -166,7 +166,7 @@ int main() {
 
     const char* keyEnv = std::getenv("ODDSOCKETS_API_KEY");
     if (!keyEnv || !keyEnv[0]) {
-        std::cerr << "Missing ODDSOCKETS_API_KEY. Get a free key (see README), then:\n"
+        std::cerr << "Missing ODDSOCKETS_API_KEY. Get an API key (see README), then:\n"
                   << "  export ODDSOCKETS_API_KEY=\"ak_...\"\n";
         return 1;
     }

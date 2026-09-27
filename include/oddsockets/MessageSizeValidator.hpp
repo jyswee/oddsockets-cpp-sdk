@@ -20,7 +20,7 @@ namespace oddsockets {
  * Message Size Validator
  * 
  * Validates message sizes against industry standard limits (32KB).
- * This matches the limits used by PubNub, Socket.IO, and other real-time messaging platforms.
+ * This is the platform limit, enforced server-side.
  * 
  * This follows the same validation logic as the JavaScript SDK.
  */
@@ -102,7 +102,7 @@ inline std::string MessageSizeValidator::createSizeErrorMessage(size_t actualSiz
     size_t actualSizeKB = (actualSize + 1023) / 1024; // Round up to KB
     return "Message size (" + std::to_string(actualSizeKB) + "KB) exceeds maximum allowed size of " +
            std::to_string(MAX_MESSAGE_SIZE_KB) + "KB. " +
-           "This limit matches industry standards (PubNub, Socket.IO) for reliable real-time messaging.";
+           "Split the payload, or publish a reference to it instead.";
 }
 
 // Utility function for backward compatibility with Types.hpp

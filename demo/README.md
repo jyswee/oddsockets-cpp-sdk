@@ -32,7 +32,7 @@ connection to a worker. Everything below crosses the wire between them.
 ## Run it
 
 Build from the repo **root** so the SDK source is in the Docker context, then
-run with a free API key (see the SDK README for how to get one):
+run with an API key (see the SDK README for how to get one):
 
 ```bash
 docker build -f demo/Dockerfile -t oddsockets-cpp-demo .
