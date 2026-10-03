@@ -197,10 +197,10 @@ int main() {
         auto wb = bob->getWorkerInfo();
         std::string wida = wa ? wa->workerId : "?";
         std::string widb = wb ? wb->workerId : "?";
-        logline("[connect] alice -> " + wida + ", bob -> " + widb);
-        logline(std::string("[cross-worker] ") +
-                (wida != widb ? "YES (distinct workers, real Redis fan-out)"
-                              : "no (same worker) - fan-out still via room"));
+        // The two assignments are compared internally; only the RELATION is logged.
+        logline(std::string("[cross-instance] ") +
+                (wida != widb ? "YES (distinct instances - real cross-instance fan-out)"
+                              : "no (same instance) - fan-out still via room"));
 
         // ---- alice ack + inbound listeners ----
         alice->on("challenge_create_success", [&](const std::string& p){ logline("[alice ack challenge_create_success] " + p); capCreateAck.set(p); });
@@ -369,7 +369,8 @@ int main() {
         bob->disconnect();
 
         R.summary();
-        logline(std::string("[workers] alice=") + wida + " bob=" + widb);
+        logline(std::string("[workers] alice and bob were assigned ") +
+                (wida != widb ? "different instances" : "the same instance"));
         if (R.allGreen()) {
             logline("\nOK - ALL challenge assertions verified live through OddSockets QA");
             return 0;

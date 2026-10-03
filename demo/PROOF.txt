@@ -3,8 +3,6 @@ Captured: 2026-07-23T19:36:26Z
 Command: docker run --rm -e ODDSOCKETS_API_KEY=ak_... oddsockets-cpp-demo
 Exit code: 0
 
-[connect] alice -> [instance], bob -> [instance]
-
 === Scenario 1: core pub/sub on demo-core-<nonce> ===
 [alice] subscribed
 [bob] published (ok=true)

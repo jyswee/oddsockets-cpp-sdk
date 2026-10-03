@@ -369,7 +369,7 @@ std::future<bool> OddSockets::getWorkerAssignment() {
                 return false;
             }
 
-            log(LogLevel::Info, "Assigned to worker: " + workerId_ + " (" + workerUrl_ + ")");
+            log(LogLevel::Info, "Connection endpoint assigned: " + workerUrl_);
             return true;
         } catch (const std::exception& e) {
             handleError(ErrorCode::ManagerOffline, e.what());

@@ -180,11 +180,6 @@ int main() {
             std::cerr << "ERROR: could not connect both clients (worker assignment failed?)\n";
             return 1;
         }
-        auto wa = alice->getWorkerInfo();
-        auto wb = bob->getWorkerInfo();
-        std::cout << "[connect] alice -> " << (wa ? wa->workerId : "?")
-                  << ", bob -> " << (wb ? wb->workerId : "?") << "\n";
-
         if (!scenarioCore(*alice, *bob, nonce)) return 2;
         if (!scenarioEnhanced(*alice, *bob, nonce)) return 2;
 
